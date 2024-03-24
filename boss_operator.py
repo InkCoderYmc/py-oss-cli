@@ -12,7 +12,7 @@ class BossManagement:
         secret_access_key: str,
         region: str,
         endpoint_url: str,
-        buckets: str = "archimedes_models",
+        buckets: str,
     ):
         self.access_key = access_key
         self.secret_access_key = secret_access_key
