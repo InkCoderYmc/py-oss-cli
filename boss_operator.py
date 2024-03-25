@@ -5,7 +5,10 @@ from boto3 import Session
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
-class BossManagement:
+class BossOperator:
+    """
+    作用: 提供session层面的管理,支持下载上传删除等多项操作
+    """
     def __init__(
         self,
         access_key: str,
@@ -69,7 +72,8 @@ class BossManagement:
 
     # 通过list_objects_v2实现文件列表获取
     def list_dir_files(self, boss_dir: str) -> list:
-        """通过list_objects_v2实现文件列表获取
+        """
+        通过list_objects_v2实现文件列表获取
 
         Args:
             boss_dir (str): 要获取的文件夹名称(可以只给出前缀,不强制要求写全)
@@ -81,11 +85,13 @@ class BossManagement:
         files = []
         is_truncated = True
         continuation_token = ""
+        # 去除对前缀的支持，强制要求传入参数为完整的文件夹名
+        boss_dir = boss_dir.rstrip("/")+"/"
         while is_truncated:
             resp = self.client.list_objects_v2(
                 Bucket=self.buckets,
                 ContinuationToken=continuation_token,
-                MaxKeys=100,
+                MaxKeys=100, # 通过每次 100 个请求以及偏移量的支持，优化list性能
                 StartAfter=boss_dir,
             )
             contents = resp["Contents"]
@@ -100,11 +106,12 @@ class BossManagement:
         return files
 
     def check_args(self) -> bool:
-        """通过list函数判断参数是否可用
+        """
+        通过list函数判断连接状态
         =>原因为list_objects_v2开销较小
 
         Returns:
-            bool: _description_
+            bool
         """
         try:
             self.client.list_objects_v2(
@@ -119,7 +126,8 @@ class BossManagement:
             return False
 
     def upload_single_file(self, file_path: str, upload_path: str) -> bool:
-        """上传单个文件到boss
+        """
+        上传单个文件到boss
 
         Args:
             file_path (str): 上传文件的本地路径
@@ -136,15 +144,16 @@ class BossManagement:
                 raise Exception(f"File {file_path} not found")
             if self.__boss_file_exist(upload_path):
                 self.resource.Object(self.buckets, upload_path).delete()
-            print(f"archimedes: upload {file_path} -> {upload_path}")
+            print(f"upload {file_path} -> {upload_path}")
             self.resource.Object(self.buckets, upload_path).upload_file(file_path)
             return True
         except Exception as e:
-            print(f"archimedes: {e=}")
+            print(f"upload single file failed: {e=}")
             return False
 
     def upload_files(self, file_list: list, path_list: list) -> bool:
-        """上传多个文件到boss
+        """
+        上传多个文件到boss
 
         Args:
             file_list (list): 上传文件的本地路径列表
@@ -158,17 +167,19 @@ class BossManagement:
             Exception: 参数检查失败和上传失败
         """
         try:
+            # 输入两个参数的长度检查
             if len(file_list) != len(path_list):
                 raise Exception("file_list and path_list length not match")
             for file, path in zip(file_list, path_list):
                 self.upload_single_file(file, path)
             return True
         except Exception as e:
-            print(f"archimedes: {e=}")
+            print(f"upload file failed: {e=}")
             return False
 
     def upload_dir(self, file_dir: str, upload_dir: str, ignore_re: str = None) -> bool:
-        """上传本地文件夹到boss
+        """
+        上传本地文件夹到boss
 
         Args:
             file_dir (str): 本地文件夹名
@@ -199,11 +210,12 @@ class BossManagement:
             self.upload_files(file_list, upload_list)
             return True
         except Exception as e:
-            print(f"archimedes: {e=}")
+            print(f"upload dir failed: {e=}")
             return False
 
     def download_single_file(self, file: str, path: str) -> bool:
-        """下载boss文件到本地
+        """
+        下载boss文件到本地
 
         Args:
             file (str): boss上的文件路径
@@ -214,25 +226,22 @@ class BossManagement:
         """
         try:
             if not self.__local_file_exist(path) and self.__boss_file_exist(file):
-                print(f"archimedes: start download {file} -> {path}")
                 self.resource.Object(self.buckets, file).download_file(path)
-                print(f"archimedes: download success")
+                print(f"download success: {file} -> {path}")
             elif self.__local_file_exist(path):
-                print(f"archimedes: local file {path} is exist")
-                print(f"archimedes: remove {path}")
                 os.remove(path)
-                print(f"archimedes: start download {file} -> {path}")
                 self.resource.Object(self.buckets, file).download_file(path)
-                print(f"archimedes: download success")
+                print(f"download success: {file} -> {path}")
             else:
-                print(f"archimedes: boss file {file} not exist")
+                print(f"download failed: boss file {file} not exist")
             return True
         except Exception as e:
-            print(f"archimedes: {e=}")
+            print(f"download single file failed: {e=}")
             return False
 
     def download_dir(self, boss_dir: str, local_dir: str) -> bool:
-        """下载boss文件夹到本地
+        """
+        下载boss文件夹到本地
 
         Args:
             boss_dir (str): boss上的文件夹路径
@@ -251,12 +260,15 @@ class BossManagement:
                 self.download_single_file(file, local_file)
             return True
         except Exception as e:
-            print(f"archimedes: {e=}")
+            print(f"download dir failed: {e=}")
             return False
 
 
     def download_dir_with_ignore(self, boss_dir, local_dir, ignore) -> bool:
-        """下载boss文件夹到本地，忽略满足以 ignore 结尾的文件
+        """
+        下载boss文件夹到本地，忽略满足以 ignore 结尾的文件
+        目前仅支持后缀匹配
+        TODO: 增加正则支持
 
         Args:
             boss_dir (str): boss上的文件夹路径
@@ -267,31 +279,26 @@ class BossManagement:
         """
         try:
             boss_files = self.list_dir_files(boss_dir)
-            print(self.access_key)
-            print(self.secret_access_key)
-            print(self.endpoint_url)
-            print(self.region)
-            print(self.buckets)
-            print(boss_dir)
-            print(boss_files)
+            # mkdir 保证本地下载文件夹存在，不创建直接下载会失败
             self.__mkdir(local_dir)
             for file in boss_files:
-                print(f"check file: {file}")
                 if file.endswith(ignore):
                     print(f"{file} ignore")
                     continue
                 local_file = file.replace(boss_dir, local_dir)
                 file_dir = "/".join(local_file.split("/")[:-1])
+                # 用于子文件夹的创建
                 self.__mkdir(file_dir)
                 self.download_single_file(file, local_file)
             return True
         except Exception as e:
-            print(f"archimedes: {e=}")
+            print(f"downloda dir with ignore failed: {e=}")
             return False
 
 
     def delete_single_file(self, file_path: str) -> bool:
-        """删除boss文件
+        """
+        删除boss文件
 
         Args:
             file_path (str): boss文件路径
@@ -308,11 +315,12 @@ class BossManagement:
                 print(f"boss file {file_path} delete success")
                 return True
         except Exception as e:
-            print(f"archimedes: {e=}")
+            print(f"delete single file failed: {e=}")
             return False
 
     def delete_files(self, file_list: list) -> bool:
-        """删除boss文件列表
+        """
+        删除boss文件列表
 
         Args:
             file_list (list): boss文件列表
@@ -325,11 +333,12 @@ class BossManagement:
                 self.delete_single_file(file)
             return True
         except Exception as e:
-            print(f"archimedes: {e=}")
+            print(f"delete files failed: {e=}")
             return False
 
     def delete_dir(self, boss_dir:str) -> bool:
-        """删除boss文件夹
+        """
+        删除boss文件夹
 
         Args:
             boss_dir (str): boss文件夹路径
@@ -340,14 +349,16 @@ class BossManagement:
         try:
             files = self.list_dir_files(boss_dir)
             self.delete_files(files)
-            print(f"archimedes: delete {boss_dir} success")
+            print(f"delete {boss_dir} success")
             return True
         except Exception as e:
+            print(f"delete dir failed: {e=}")
             return False
 
 
     def __mkdir(self, path:str):
-        """创建文件夹，用于本地文件存储
+        """
+        创建文件夹，用于本地文件存储
 
         Args:
             path (str): 需要创建的文件夹路径
@@ -360,7 +371,8 @@ class BossManagement:
 
 
     def __boss_file_exist(self, file_path:str) -> bool:
-        """判断 boss 文件是否存在
+        """
+        判断 boss 文件是否存在
 
         Args:
             file_path (str): boss文件路径
@@ -389,7 +401,8 @@ class BossManagement:
 
 
     def __local_file_exist(self, file_path: str) -> bool:
-        """判断本地文件是否存在
+        """
+        判断本地文件是否存在
 
         Args:
             file_path (str): 本地文件路径
@@ -404,7 +417,8 @@ class BossManagement:
 
 
     def __get_file_names_in_folder(self, folder_path: str) -> list:
-        """获取文件夹中所有文件的文件名列表
+        """
+        获取文件夹中所有文件的文件名列表
 
         Args:
             folder_path (str): 文件夹路径
@@ -421,7 +435,8 @@ class BossManagement:
 
 
     def __match_file_name(self, file_name: str, pattern: str) -> bool:
-        """正则匹配文件名
+        """
+        正则匹配文件名
 
         Args:
             file_name (str): 文件名
