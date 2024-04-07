@@ -5,23 +5,29 @@ from boto3 import Session
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
-class BossOperator:
+class OSSOperator:
     """
     作用: 提供session层面的管理,支持下载上传删除等多项操作
     """
     def __init__(
         self,
-        access_key: str,
-        secret_access_key: str,
-        region: str,
-        endpoint_url: str,
-        buckets: str,
+        config: dict,
+        # access_key: str,
+        # secret_access_key: str,
+        # region: str,
+        # endpoint_url: str,
+        # buckets: str,
     ):
-        self.access_key = access_key
-        self.secret_access_key = secret_access_key
-        self.region = region
-        self.endpoint_url = endpoint_url
-        self.buckets = buckets
+        # self.access_key = access_key
+        # self.secret_access_key = secret_access_key
+        # self.region = region
+        # self.endpoint_url = endpoint_url
+        # self.buckets = buckets
+        self.access_key = config.get("access_key", "")
+        self.secret_access_key = config.get("secret_access_key", "")
+        self.region = config.get("region", "")
+        self.endpoint_url = config.get("endpoint_url", "")
+        self.buckets = config.get("bucket", "")
         self.session = Session(
             aws_access_key_id=self.access_key,
             aws_secret_access_key=self.secret_access_key,
@@ -120,9 +126,11 @@ class BossOperator:
                 MaxKeys=100,
                 StartAfter="",
             )
+            print('args check success')
             return True
         except Exception as e:
             self.error_message = e
+            print(f'args check fail: {e=}')
             return False
 
     def upload_single_file(self, file_path: str, upload_path: str) -> bool:
