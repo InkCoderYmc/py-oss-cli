@@ -7,17 +7,17 @@ def get_args():
     # 参数读取
     parser = argparse.ArgumentParser(description='Simple OSS CLI')
     # 支持上传、下载、删除三种操作
-    parser.add_argument('--action', help='upload, download, delete', choices=['upload', 'download', 'delete'], default=False, required=False)
+    parser.add_argument('--a', help='upload, download, delete', choices=['upload', 'download', 'delete'], default=False, required=False)
     # 是否启用目录操作
-    parser.add_argument('--dir-enable', help='enable dir operation', )
+    parser.add_argument('--d', help='enable dir operation', )
     # 源文件路径
-    parser.add_argument('--source-path', type=str, help='source_path')
+    parser.add_argument('--s', type=str, help='source_path')
     # 目标文件路径
-    parser.add_argument('--target-path', type=str, help='target_path', required=False)
-    # 配置文件路径 非必须
-    parser.add_argument('--config-path', type=str, help='config_path', default=None, required=False)
+    parser.add_argument('--t', type=str, help='target_path', required=False)
     # 配置文件名称 非必须 默认为default
-    parser.add_argument('--config-name', type=str, help='config_name', default=None, required=False)
+    parser.add_argument('--c', type=str, help='config_name', default=None, required=False)
+    # 配置文件路径 非必须
+    parser.add_argument('--cp', type=str, help='config_path', default=None, required=False)
 
     args = parser.parse_args()
 

@@ -127,6 +127,9 @@ class OSSOperator:
                 StartAfter="",
             )
             print('args check success')
+            print(self.access_key)
+            print(self.secret_access_key)
+            print(self.buckets)
             return True
         except Exception as e:
             self.error_message = e
