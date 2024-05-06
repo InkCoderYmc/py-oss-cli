@@ -7,6 +7,10 @@ from .utils import check_file_exists
 
 class OSSConfig:
     def __init__(self, config_path=None, config_name=None):
+        """
+        初始化函数
+        用于选择配置文件以及配置项
+        """
         self.config_path = (
             config_path
             if config_path
