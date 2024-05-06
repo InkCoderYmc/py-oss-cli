@@ -68,5 +68,5 @@ def main():
         if args.dir_enable:
             operator.delete_dir(args.source_path)
         else:
-            operator.delete_file(args.source_path)
+            operator.delete_single_file(args.source_path)
     return
