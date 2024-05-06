@@ -1,28 +1,21 @@
 import os
 import re
 from io import BytesIO
+
 from boto3 import Session
 from botocore.config import Config
 from botocore.exceptions import ClientError
+
 
 class OSSOperator:
     """
     作用: 提供session层面的管理,支持下载上传删除等多项操作
     """
+
     def __init__(
         self,
         config: dict,
-        # access_key: str,
-        # secret_access_key: str,
-        # region: str,
-        # endpoint_url: str,
-        # buckets: str,
     ):
-        # self.access_key = access_key
-        # self.secret_access_key = secret_access_key
-        # self.region = region
-        # self.endpoint_url = endpoint_url
-        # self.buckets = buckets
         self.access_key = config.get("access_key", "")
         self.secret_access_key = config.get("secret_access_key", "")
         self.region = config.get("region", "")
@@ -92,12 +85,12 @@ class OSSOperator:
         is_truncated = True
         continuation_token = ""
         # 去除对前缀的支持，强制要求传入参数为完整的文件夹名
-        boss_dir = boss_dir.rstrip("/")+"/"
+        boss_dir = boss_dir.rstrip("/") + "/"
         while is_truncated:
             resp = self.client.list_objects_v2(
                 Bucket=self.buckets,
                 ContinuationToken=continuation_token,
-                MaxKeys=100, # 通过每次 100 个请求以及偏移量的支持，优化list性能
+                MaxKeys=100,  # 通过每次 100 个请求以及偏移量的支持，优化list性能
                 StartAfter=boss_dir,
             )
             contents = resp["Contents"]
@@ -126,14 +119,14 @@ class OSSOperator:
                 MaxKeys=100,
                 StartAfter="",
             )
-            print('args check success')
+            print("args check success")
             print(self.access_key)
             print(self.secret_access_key)
             print(self.buckets)
             return True
         except Exception as e:
             self.error_message = e
-            print(f'args check fail: {e=}')
+            print(f"args check fail: {e=}")
             return False
 
     def upload_single_file(self, file_path: str, upload_path: str) -> bool:
@@ -153,8 +146,9 @@ class OSSOperator:
         try:
             if not self.__local_file_exist(file_path):
                 raise Exception(f"File {file_path} not found")
-            if self.__boss_file_exist(upload_path):
-                self.resource.Object(self.buckets, upload_path).delete()
+            # 去除上传检查逻辑,oss本身为覆盖写,此处删除为冗余操作
+            # if self.__boss_file_exist(upload_path):
+            #    self.resource.Object(self.buckets, upload_path).delete()
             print(f"upload {file_path} -> {upload_path}")
             self.resource.Object(self.buckets, upload_path).upload_file(file_path)
             return True
@@ -274,7 +268,6 @@ class OSSOperator:
             print(f"download dir failed: {e=}")
             return False
 
-
     def download_dir_with_ignore(self, boss_dir, local_dir, ignore) -> bool:
         """
         下载boss文件夹到本地，忽略满足以 ignore 结尾的文件
@@ -305,7 +298,6 @@ class OSSOperator:
         except Exception as e:
             print(f"downloda dir with ignore failed: {e=}")
             return False
-
 
     def delete_single_file(self, file_path: str) -> bool:
         """
@@ -347,7 +339,7 @@ class OSSOperator:
             print(f"delete files failed: {e=}")
             return False
 
-    def delete_dir(self, boss_dir:str) -> bool:
+    def delete_dir(self, boss_dir: str) -> bool:
         """
         删除boss文件夹
 
@@ -366,8 +358,7 @@ class OSSOperator:
             print(f"delete dir failed: {e=}")
             return False
 
-
-    def __mkdir(self, path:str):
+    def __mkdir(self, path: str):
         """
         创建文件夹，用于本地文件存储
 
@@ -380,8 +371,7 @@ class OSSOperator:
         if not folder:
             os.makedirs(path)
 
-
-    def __boss_file_exist(self, file_path:str) -> bool:
+    def __boss_file_exist(self, file_path: str) -> bool:
         """
         判断 boss 文件是否存在
 
@@ -410,7 +400,6 @@ class OSSOperator:
             if e.response["Error"]["Code"] == "404":
                 return False
 
-
     def __local_file_exist(self, file_path: str) -> bool:
         """
         判断本地文件是否存在
@@ -425,7 +414,6 @@ class OSSOperator:
             return True
         else:
             return False
-
 
     def __get_file_names_in_folder(self, folder_path: str) -> list:
         """
@@ -444,7 +432,6 @@ class OSSOperator:
                 file_paths.append(os.path.relpath(file_path, folder_path))
         return file_paths
 
-
     def __match_file_name(self, file_name: str, pattern: str) -> bool:
         """
         正则匹配文件名
@@ -459,4 +446,3 @@ class OSSOperator:
         # 使用正则表达式匹配文件名
         match = re.match(pattern, file_name)
         return bool(match)
-
